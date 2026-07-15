@@ -28,3 +28,7 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# local database (sqlite) - runtime data, never commit
+/data
+/data/

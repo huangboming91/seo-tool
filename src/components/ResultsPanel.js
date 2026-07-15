@@ -1,13 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import KeywordMetricsSummary from '@/components/KeywordMetricsSummary';
+import SearchTrendsChart from '@/components/SearchTrendsChart';
+import SerpAnalysisPanel from '@/components/SerpAnalysisPanel';
 
-export default function ResultsPanel({ complete, results, error }) {
-  const [tab, setTab] = useState('serp');
+export default function ResultsPanel({ complete, results, error, keyword }) {
+  const [tab, setTab] = useState('overview');
   const [serpSort, setSerpSort] = useState({ col: 'rank', asc: true });
   const [kwSort, setKwSort] = useState({ col: 'keyword', asc: true });
 
   const tabs = [
+    { id: 'overview', label: 'Overview', count: null },
     { id: 'serp', label: 'SERP pages', count: results?.serp_pages?.length || 0 },
     { id: 'keywords', label: 'Keywords', count: results?.keywords?.length || 0 },
     { id: 'clusters', label: 'Theme clusters', count: results?.clusters?.length || 0 },
@@ -38,13 +42,13 @@ export default function ResultsPanel({ complete, results, error }) {
       borderRadius: 'var(--border-radius-lg)',
       overflow: 'hidden',
     }}>
-      <div style={{ display: 'flex', borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+      <div style={{ display: 'flex', borderBottom: '0.5px solid var(--color-border-tertiary)', overflowX: 'auto' }}>
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             style={{
-              padding: '10px 16px',
+              padding: '10px 14px',
               fontSize: 13,
               fontWeight: tab === t.id ? 500 : 400,
               color: tab === t.id ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
@@ -52,6 +56,7 @@ export default function ResultsPanel({ complete, results, error }) {
               border: 'none',
               borderBottom: tab === t.id ? '2px solid var(--color-blue-600)' : '2px solid transparent',
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
             }}
           >
             {t.label}
@@ -64,7 +69,7 @@ export default function ResultsPanel({ complete, results, error }) {
         ))}
       </div>
 
-      <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+      <div style={{ maxHeight: 760, overflowY: 'auto' }}>
         {!complete && !error && (
           <div style={{ padding: '60px 20px', textAlign: 'center' }}>
             <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
@@ -73,6 +78,21 @@ export default function ResultsPanel({ complete, results, error }) {
             <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
               Click column headers to sort results after search completes
             </div>
+          </div>
+        )}
+
+        {complete && tab === 'overview' && (
+          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 20,
+              alignItems: 'stretch',
+            }}>
+              <KeywordMetricsSummary keyword={keyword} metrics={results?.keyword_metrics} />
+              <SearchTrendsChart data={results?.traffic} title="Search Trends" />
+            </div>
+            <SerpAnalysisPanel data={results?.serp_pages} keyword={keyword} />
           </div>
         )}
 
@@ -197,6 +217,24 @@ function SerpTable({ data, sort, onSort }) {
 
 function KeywordsTable({ data, sort, onSort }) {
   const sorted = sortData(data, sort.col, sort.asc);
+  const formatNumber = (n) => new Intl.NumberFormat('en-US').format(n || 0);
+
+  const intentStyle = (intent) => {
+    const styles = {
+      Info: { fg: 'var(--color-text-info)', bg: 'var(--color-background-info)' },
+      Commercial: { fg: 'var(--color-text-warning)', bg: 'var(--color-background-warning)' },
+      Navigational: { fg: 'var(--color-text-success)', bg: 'var(--color-background-success)' },
+      Transactional: { fg: 'var(--color-text-danger)', bg: 'var(--color-background-danger)' },
+    };
+    return styles[intent] || styles.Info;
+  };
+
+  const scoreStyle = (score) => {
+    const s = Number(score);
+    if (s >= 70) return { fg: 'var(--color-text-success)', bg: 'var(--color-background-success)' };
+    if (s >= 40) return { fg: 'var(--color-text-warning)', bg: 'var(--color-background-warning)' };
+    return { fg: 'var(--color-text-danger)', bg: 'var(--color-background-danger)' };
+  };
 
   return (
     <div style={{ width: '100%', overflowX: 'auto' }}>
@@ -205,28 +243,60 @@ function KeywordsTable({ data, sort, onSort }) {
           No keywords extracted from this search.
         </div>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
           <thead>
             <tr>
               <SortHeader label="Keyword" col="keyword" sort={sort} onSort={onSort} />
+              <SortHeader label="Volume" col="volume" sort={sort} onSort={onSort} width={90} />
+              <SortHeader label="CPC" col="cpc" sort={sort} onSort={onSort} width={70} />
+              <SortHeader label="Comp." col="competition" sort={sort} onSort={onSort} width={70} />
+              <SortHeader label="Score" col="score" sort={sort} onSort={onSort} width={70} />
+              <SortHeader label="Intent" col="intent" sort={sort} onSort={onSort} width={90} />
               <SortHeader label="Type" col="keyword_type" sort={sort} onSort={onSort} width={95} />
               <SortHeader label="Cluster" col="theme_cluster" sort={sort} onSort={onSort} width={110} />
-              <SortHeader label="Page Type" col="suggested_page_type" sort={sort} onSort={onSort} width={100} />
-              <SortHeader label="Slug" col="slug" sort={sort} onSort={onSort} width={150} />
-              <SortHeader label="Basis" col="data_basis" sort={sort} onSort={onSort} width={90} />
             </tr>
           </thead>
           <tbody>
-            {sorted.map((row, i) => (
-              <tr key={i}>
-                <td style={{ ...tdStyle, fontSize: 13 }}>{row.keyword}</td>
-                <td style={{ ...tdStyle, fontSize: 12, color: 'var(--color-text-secondary)' }}>{row.keyword_type}</td>
-                <td style={{ ...tdStyle, fontSize: 12 }}>{row.theme_cluster}</td>
-                <td style={{ ...tdStyle, fontSize: 12 }}>{row.suggested_page_type}</td>
-                <td style={{ ...tdStyle, fontSize: 12, color: 'var(--color-text-tertiary)' }}>/{row.slug}</td>
-                <td style={{ ...tdStyle, fontSize: 11, color: 'var(--color-text-tertiary)' }}>{row.data_basis}</td>
-              </tr>
-            ))}
+            {sorted.map((row, i) => {
+              const iStyle = intentStyle(row.intent);
+              const sStyle = scoreStyle(row.score);
+              return (
+                <tr key={i}>
+                  <td style={{ ...tdStyle, fontSize: 13 }}>{row.keyword}</td>
+                  <td style={{ ...tdStyle, fontSize: 12 }}>{formatNumber(row.volume)}</td>
+                  <td style={{ ...tdStyle, fontSize: 12, color: 'var(--color-text-secondary)' }}>${row.cpc}</td>
+                  <td style={{ ...tdStyle, fontSize: 12, color: 'var(--color-text-secondary)' }}>{row.competition}</td>
+                  <td style={tdStyle}>
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: 11,
+                      padding: '2px 8px',
+                      borderRadius: 10,
+                      background: sStyle.bg,
+                      color: sStyle.fg,
+                      fontWeight: 500,
+                    }}>
+                      {row.score}
+                    </span>
+                  </td>
+                  <td style={tdStyle}>
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: 11,
+                      padding: '2px 8px',
+                      borderRadius: 10,
+                      background: iStyle.bg,
+                      color: iStyle.fg,
+                      fontWeight: 500,
+                    }}>
+                      {row.intent}
+                    </span>
+                  </td>
+                  <td style={{ ...tdStyle, fontSize: 12, color: 'var(--color-text-secondary)' }}>{row.keyword_type}</td>
+                  <td style={{ ...tdStyle, fontSize: 12 }}>{row.theme_cluster}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

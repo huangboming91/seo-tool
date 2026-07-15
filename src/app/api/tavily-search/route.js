@@ -13,7 +13,7 @@ export async function POST(request) {
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'Tavily API key not configured' },
+        { error: 'Search API key not configured' },
         { status: 500 }
       );
     }
@@ -39,7 +39,7 @@ export async function POST(request) {
     if (!tavRes.ok) {
       const errText = await tavRes.text();
       return NextResponse.json(
-        { error: `Tavily API error: ${tavRes.status}` },
+        { error: `Search API error: ${tavRes.status}` },
         { status: 502 }
       );
     }
@@ -70,7 +70,7 @@ export async function POST(request) {
 
   } catch (err) {
     return NextResponse.json(
-      { error: err.message || 'Tavily search failed' },
+      { error: err.message || 'Search request failed' },
       { status: 500 }
     );
   }

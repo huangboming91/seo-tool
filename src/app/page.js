@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ResearchParams from '@/components/ResearchParams';
 import ResultsPanel from '@/components/ResultsPanel';
+import PreviousAudits from '@/components/PreviousAudits';
 
 export default function Home() {
   const [searchState, setSearchState] = useState({
@@ -12,18 +13,34 @@ export default function Home() {
     results: null,
     error: null,
   });
+  const [history, setHistory] = useState([]);
+  const [keyword, setKeyword] = useState('');
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('seo-keyword-research-history');
+      if (saved) setHistory(JSON.parse(saved));
+    } catch (e) {
+      console.error('Failed to load keyword research history:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('seo-keyword-research-history', JSON.stringify(history));
+  }, [history]);
 
   const handleSearch = async (params) => {
+    setKeyword(params.keyword || '');
     setSearchState({
       running: true,
       complete: false,
-      progress: { pct: 0, label: 'Querying DataForSEO SERP API...' },
+      progress: { pct: 0, label: 'Querying search results...' },
       results: null,
       error: null,
     });
 
     const steps = [
-      { pct: 5, label: 'Querying DataForSEO SERP API...' },
+      { pct: 5, label: 'Querying search results...' },
       { pct: 25, label: 'Extracting page metadata...' },
       { pct: 50, label: 'Analyzing keywords...' },
       { pct: 75, label: 'Clustering themes...' },
@@ -70,6 +87,17 @@ export default function Home() {
         results: data,
         error: null,
       });
+
+      const record = {
+        id: `kw-${Date.now()}`,
+        target: params.keyword,
+        date: new Date().toISOString(),
+        status: 'done',
+        country: params.country,
+        language: params.language,
+        results: data,
+      };
+      setHistory((prev) => [record, ...prev].slice(0, 20));
     } catch (err) {
       clearInterval(progressInterval);
       setSearchState({
@@ -79,6 +107,27 @@ export default function Home() {
         results: null,
         error: err.message || 'Network error',
       });
+    }
+  };
+
+  const loadHistory = (record) => {
+    setKeyword(record.target || '');
+    setSearchState({
+      running: false,
+      complete: true,
+      progress: { pct: 100, label: 'Loaded from history' },
+      results: record.results,
+      error: null,
+    });
+  };
+
+  const deleteHistory = (id) => {
+    setHistory((prev) => prev.filter((h) => h.id !== id));
+  };
+
+  const clearHistory = () => {
+    if (typeof window !== 'undefined' && window.confirm('Clear all keyword research history?')) {
+      setHistory([]);
     }
   };
 
@@ -124,6 +173,7 @@ export default function Home() {
             complete={searchState.complete}
             results={searchState.results}
             error={searchState.error}
+            keyword={keyword}
           />
 
           <div style={{
@@ -166,6 +216,19 @@ export default function Home() {
               &#8595; Export CSV
             </button>
           </div>
+
+          <PreviousAudits
+            title="Previous Audits"
+            items={history}
+            columns={[
+              { key: 'target', label: 'Keyword' },
+              { key: 'country', label: 'Country' },
+              { key: 'language', label: 'Language' },
+            ]}
+            onSelect={loadHistory}
+            onDelete={deleteHistory}
+            onClear={clearHistory}
+          />
         </div>
       </div>
     </div>

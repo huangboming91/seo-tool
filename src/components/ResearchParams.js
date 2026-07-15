@@ -8,7 +8,7 @@ export default function ResearchParams({ onSearch, running, progress, complete }
   const [language, setLanguage] = useState('English');
   const [country, setCountry] = useState('United States');
   const [pageType, setPageType] = useState('All types');
-  const [userType, setUserType] = useState('B2B');
+  const [userType, setUserType] = useState('B2C');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -103,7 +103,7 @@ export default function ResearchParams({ onSearch, running, progress, complete }
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>User type</label>
           <div style={{ display: 'flex', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 'var(--border-radius-md)', overflow: 'hidden' }}>
-            {['B2B', 'B2C'].map((type) => (
+            {['B2C', 'B2B'].map((type) => (
               <button
                 key={type}
                 type="button"
@@ -189,17 +189,6 @@ export default function ResearchParams({ onSearch, running, progress, complete }
           </div>
         )}
 
-        <div style={{
-          marginTop: 14,
-          padding: 10,
-          background: 'var(--color-background-secondary)',
-          borderRadius: 'var(--border-radius-md)',
-          fontSize: 11,
-          color: 'var(--color-text-secondary)',
-          lineHeight: 1.5,
-        }}>
-          Data source: <strong style={{ color: 'var(--color-text-primary)' }}>DataForSEO</strong> (pay-as-you-go). Est. cost per search: <strong style={{ color: 'var(--color-text-primary)' }}>$0.006</strong> (10 SERP results)
-        </div>
       </div>
     </form>
   );

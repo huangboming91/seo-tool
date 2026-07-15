@@ -23,6 +23,11 @@ export async function POST(request) {
 
       const kwData = keywords.map((k) => ({
         keyword: k.keyword,
+        volume: k.volume,
+        cpc: k.cpc,
+        competition: k.competition,
+        score: k.score,
+        intent: k.intent,
         keyword_type: k.keyword_type,
         theme_cluster: k.theme_cluster,
         suggested_page_type: k.suggested_page_type,
@@ -56,7 +61,7 @@ export async function POST(request) {
 
     if (format === 'csv') {
       const serpFields = ['Rank', 'Page Title', 'URL', 'H1', 'Meta', 'Page Type'];
-      const kwFields = ['keyword', 'keyword_type', 'theme_cluster', 'suggested_page_type', 'slug', 'data_basis', 'related_search', 'related_questions'];
+      const kwFields = ['keyword', 'volume', 'cpc', 'competition', 'score', 'intent', 'keyword_type', 'theme_cluster', 'suggested_page_type', 'slug', 'data_basis', 'related_search', 'related_questions'];
       const clusterFields = ['cluster_name', 'primary_keyword', 'supporting_keywords', 'slug', 'priority'];
 
       const csvContent = [];
