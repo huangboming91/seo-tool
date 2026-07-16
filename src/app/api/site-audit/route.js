@@ -169,7 +169,7 @@ function detectIssues(page, item) {
 
 export async function POST(request) {
   try {
-    const quotaCheck = checkQuota(request, 'site_audit', 'search');
+    const quotaCheck = await checkQuota(request, 'site_audit', 'search');
     if (!quotaCheck.allowed) {
       if (quotaCheck.reason === 'auth_required') {
         return NextResponse.json(

@@ -10,8 +10,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    const db = ensureDb();
-    const user = db.prepare(`
+    const db = await ensureDb();
+    const user = await db.prepare(`
       SELECT id, email, password_hash, display_name, role, status, data_scope
       FROM users WHERE email = ?
     `).get(email.toLowerCase().trim());
@@ -27,7 +27,7 @@ export async function POST(request) {
     const token = createToken(user);
     const ip = getClientIp(request);
 
-    logAction({
+    await logAction({
       userId: user.id,
       userEmail: user.email,
       module: 'auth',

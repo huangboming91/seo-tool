@@ -29,9 +29,9 @@ export async function POST(request) {
       );
     }
 
-    const db = ensureDb();
+    const db = await ensureDb();
 
-    const existing = db
+    const existing = await db
       .prepare('SELECT id FROM users WHERE email = ?')
       .get(email.toLowerCase().trim());
     if (existing) {
@@ -42,12 +42,12 @@ export async function POST(request) {
     const passwordHash = hashPassword(password);
     const today = new Date().toISOString().slice(0, 10);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO users (id, email, password_hash, display_name, role, status, data_scope)
       VALUES (?, ?, ?, ?, 'sub_account', 'active', 'self')
     `).run(userId, email.toLowerCase().trim(), passwordHash, display_name);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO quotas (id, user_id, daily_limit, used_today, last_reset_date)
       VALUES (?, ?, 10, 0, ?)
     `).run(crypto.randomUUID(), userId, today);
@@ -57,11 +57,11 @@ export async function POST(request) {
       VALUES (?, ?, ?, 1, 1, 0, ?)
     `);
     for (const [mod, weight] of Object.entries(MODULE_WEIGHTS)) {
-      permStmt.run(crypto.randomUUID(), userId, mod, weight);
+      await permStmt.run(crypto.randomUUID(), userId, mod, weight);
     }
 
     const ip = getClientIp(request);
-    logAction({
+    await logAction({
       userId,
       userEmail: email.toLowerCase().trim(),
       module: 'auth',

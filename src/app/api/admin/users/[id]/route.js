@@ -4,13 +4,13 @@ import { logAction } from '@/lib/quota';
 import crypto from 'crypto';
 
 export async function GET(request, { params }) {
-  const currentUser = getUserFromRequest(request);
+  const currentUser = await getUserFromRequest(request);
   if (!currentUser || currentUser.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  const db = ensureDb();
-  const user = db.prepare(`
+  const db = await ensureDb();
+  const user = await db.prepare(`
     SELECT id, email, display_name, role, status, data_scope, created_at, updated_at
     FROM users WHERE id = ?
   `).get(params.id);
@@ -19,8 +19,8 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
-  const quota = db.prepare('SELECT daily_limit, used_today, last_reset_date FROM quotas WHERE user_id = ?').get(params.id);
-  const perms = db.prepare('SELECT module, can_access, can_export, can_batch, weight FROM permissions WHERE user_id = ?').all(params.id);
+  const quota = await db.prepare('SELECT daily_limit, used_today, last_reset_date FROM quotas WHERE user_id = ?').get(params.id);
+  const perms = await db.prepare('SELECT module, can_access, can_export, can_batch, weight FROM permissions WHERE user_id = ?').all(params.id);
 
   return NextResponse.json({
     user,
@@ -38,7 +38,7 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
-  const currentUser = getUserFromRequest(request);
+  const currentUser = await getUserFromRequest(request);
   if (!currentUser || currentUser.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
@@ -46,7 +46,7 @@ export async function PUT(request, { params }) {
   try {
     const body = await request.json();
     const { display_name, password, status, data_scope, daily_limit, permissions } = body;
-    const db = ensureDb();
+    const db = await ensureDb();
 
     const updates = [];
     const values = [];
@@ -71,17 +71,17 @@ export async function PUT(request, { params }) {
     if (updates.length > 0) {
       updates.push("updated_at = datetime('now')");
       values.push(params.id);
-      db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+      await db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values);
     }
 
     // Update quota
     if (daily_limit !== undefined) {
-      const existing = db.prepare('SELECT id FROM quotas WHERE user_id = ?').get(params.id);
+      const existing = await db.prepare('SELECT id FROM quotas WHERE user_id = ?').get(params.id);
       if (existing) {
-        db.prepare('UPDATE quotas SET daily_limit = ? WHERE user_id = ?').run(daily_limit, params.id);
+        await db.prepare('UPDATE quotas SET daily_limit = ? WHERE user_id = ?').run(daily_limit, params.id);
       } else {
         const today = new Date().toISOString().slice(0, 10);
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO quotas (id, user_id, daily_limit, used_today, last_reset_date)
           VALUES (?, ?, ?, 0, ?)
         `).run(crypto.randomUUID(), params.id, daily_limit, today);
@@ -95,7 +95,7 @@ export async function PUT(request, { params }) {
         WHERE user_id = ? AND module = ?
       `);
       for (const [mod, p] of Object.entries(permissions)) {
-        permStmt.run(
+        await permStmt.run(
           p.can_access ? 1 : 0,
           p.can_export ? 1 : 0,
           p.can_batch ? 1 : 0,
@@ -106,7 +106,7 @@ export async function PUT(request, { params }) {
     }
 
     const ip = getClientIp(request);
-    logAction({
+    await logAction({
       userId: currentUser.id,
       userEmail: currentUser.email,
       module: 'admin',
@@ -124,15 +124,14 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const currentUser = getUserFromRequest(request);
+  const currentUser = await getUserFromRequest(request);
   if (!currentUser || currentUser.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  const db = ensureDb();
+  const db = await ensureDb();
 
-  // Prevent deleting admin
-  const user = db.prepare('SELECT role FROM users WHERE id = ?').get(params.id);
+  const user = await db.prepare('SELECT role FROM users WHERE id = ?').get(params.id);
   if (!user) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
@@ -140,10 +139,10 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: 'Cannot delete admin account' }, { status: 400 });
   }
 
-  db.prepare('DELETE FROM users WHERE id = ?').run(params.id);
+  await db.prepare('DELETE FROM users WHERE id = ?').run(params.id);
 
   const ip = getClientIp(request);
-  logAction({
+  await logAction({
     userId: currentUser.id,
     userEmail: currentUser.email,
     module: 'admin',

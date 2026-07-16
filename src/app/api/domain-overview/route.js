@@ -29,7 +29,7 @@ const COUNTRY_MAP = {
 
 export async function POST(request) {
   try {
-    const quotaCheck = checkQuota(request, 'domain_overview', 'search');
+    const quotaCheck = await checkQuota(request, 'domain_overview', 'search');
     if (!quotaCheck.allowed) {
       if (quotaCheck.reason === 'auth_required') {
         return NextResponse.json(

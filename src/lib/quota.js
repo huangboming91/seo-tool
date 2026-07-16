@@ -8,14 +8,14 @@ function getTodayKey() {
 }
 
 // Reset daily quota if needed
-function resetQuotaIfNeeded(db, userId) {
+async function resetQuotaIfNeeded(db, userId) {
   const today = getTodayKey();
-  const quota = db.prepare('SELECT last_reset_date, used_today, daily_limit FROM quotas WHERE user_id = ?').get(userId);
+  const quota = await db.prepare('SELECT last_reset_date, used_today, daily_limit FROM quotas WHERE user_id = ?').get(userId);
 
   if (!quota) return null;
 
   if (quota.last_reset_date !== today) {
-    db.prepare(`
+    await db.prepare(`
       UPDATE quotas SET used_today = 0, last_reset_date = ?
       WHERE user_id = ?
     `).run(today, userId);
@@ -26,8 +26,8 @@ function resetQuotaIfNeeded(db, userId) {
 }
 
 // Check module access permission
-function checkModuleAccess(db, userId, module) {
-  const perm = db.prepare(`
+async function checkModuleAccess(db, userId, module) {
+  const perm = await db.prepare(`
     SELECT can_access, can_export, can_batch, weight
     FROM permissions WHERE user_id = ? AND module = ?
   `).get(userId, module);
@@ -41,8 +41,8 @@ function checkModuleAccess(db, userId, module) {
 
 // Main quota check function - called by API routes
 // Returns: { allowed, remaining, limit, source, user, permission }
-export function checkQuota(request, module, action = 'search') {
-  const db = ensureDb();
+export async function checkQuota(request, module, action = 'search') {
+  const db = await ensureDb();
 
   // Try to get authenticated user
   const cookie = request.headers.get('cookie') || '';
@@ -52,7 +52,7 @@ export function checkQuota(request, module, action = 'search') {
   if (match) {
     try {
       const payload = jwt.verify(match[1], process.env.JWT_SECRET || 'fallback-secret-change-me');
-      user = db.prepare('SELECT id, email, display_name, role, status, data_scope FROM users WHERE id = ?').get(payload.id);
+      user = await db.prepare('SELECT id, email, display_name, role, status, data_scope FROM users WHERE id = ?').get(payload.id);
       if (user && user.status !== 'active') user = null;
     } catch {}
   }
@@ -73,8 +73,7 @@ export function checkQuota(request, module, action = 'search') {
 
   // Admin: unlimited access
   if (user.role === 'admin') {
-    // Still check module permission exists
-    const accessCheck = checkModuleAccess(db, user.id, module);
+    const accessCheck = await checkModuleAccess(db, user.id, module);
     return {
       allowed: true,
       remaining: 999999,
@@ -89,7 +88,7 @@ export function checkQuota(request, module, action = 'search') {
   // Sub-account: 4-dimensional check
 
   // Dimension 1: Module access
-  const accessCheck = checkModuleAccess(db, user.id, module);
+  const accessCheck = await checkModuleAccess(db, user.id, module);
   if (!accessCheck.allowed) {
     return {
       allowed: false,
@@ -130,10 +129,10 @@ export function checkQuota(request, module, action = 'search') {
   }
 
   // Dimension 3: Weighted quota (atomic check + deduct)
-  resetQuotaIfNeeded(db, user.id);
+  await resetQuotaIfNeeded(db, user.id);
   const weight = accessCheck.permission.weight || MODULE_WEIGHTS[module] || 1;
 
-  const quotaRow = db.prepare('SELECT used_today, daily_limit FROM quotas WHERE user_id = ?').get(user.id);
+  const quotaRow = await db.prepare('SELECT used_today, daily_limit FROM quotas WHERE user_id = ?').get(user.id);
 
   if (!quotaRow) {
     return {
@@ -162,7 +161,7 @@ export function checkQuota(request, module, action = 'search') {
   }
 
   // Atomic deduct
-  db.prepare(`
+  await db.prepare(`
     UPDATE quotas SET used_today = used_today + ?
     WHERE user_id = ?
   `).run(weight, user.id);
@@ -181,21 +180,25 @@ export function checkQuota(request, module, action = 'search') {
   };
 }
 
-// Log to audit_logs
-export function logAction({ userId, userEmail, module, action, quotaConsumed = 0, status, detail, ip }) {
-  const db = ensureDb();
-  db.prepare(`
-    INSERT INTO audit_logs (id, user_id, user_email, module, action, quota_consumed, status, detail, ip_address)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    crypto.randomUUID(),
-    userId || null,
-    userEmail || null,
-    module,
-    action,
-    quotaConsumed,
-    status,
-    detail || null,
-    ip || null
-  );
+// Log to audit_logs (fire-and-forget safe; swallow errors)
+export async function logAction({ userId, userEmail, module, action, quotaConsumed = 0, status, detail, ip }) {
+  try {
+    const db = await ensureDb();
+    await db.prepare(`
+      INSERT INTO audit_logs (id, user_id, user_email, module, action, quota_consumed, status, detail, ip_address)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      crypto.randomUUID(),
+      userId || null,
+      userEmail || null,
+      module,
+      action,
+      quotaConsumed,
+      status,
+      detail || null,
+      ip || null
+    );
+  } catch (err) {
+    console.error('logAction error:', err);
+  }
 }

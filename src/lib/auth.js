@@ -9,8 +9,8 @@ const TOKEN_EXPIRY = '7d';
 
 export { COOKIE_NAME };
 
-export function ensureDb() {
-  return initDatabase();
+export async function ensureDb() {
+  return await initDatabase();
 }
 
 export function createToken(user) {
@@ -34,7 +34,7 @@ export function verifyToken(token) {
   }
 }
 
-export function getUserFromRequest(request) {
+export async function getUserFromRequest(request) {
   const cookie = request.headers.get('cookie') || '';
   const match = cookie.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
   if (!match) return null;
@@ -42,8 +42,8 @@ export function getUserFromRequest(request) {
   const payload = verifyToken(match[1]);
   if (!payload) return null;
 
-  const db = ensureDb();
-  const user = db.prepare(`
+  const db = await ensureDb();
+  const user = await db.prepare(`
     SELECT id, email, display_name, role, status, data_scope
     FROM users WHERE id = ?
   `).get(payload.id);

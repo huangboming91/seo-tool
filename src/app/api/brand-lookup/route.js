@@ -35,7 +35,7 @@ async function callDfseo(endpoint, payload) {
 
 export async function POST(request) {
   try {
-    const quotaCheck = checkQuota(request, 'brand_lookup', 'search');
+    const quotaCheck = await checkQuota(request, 'brand_lookup', 'search');
     if (!quotaCheck.allowed) {
       if (quotaCheck.reason === 'auth_required') {
         return NextResponse.json(

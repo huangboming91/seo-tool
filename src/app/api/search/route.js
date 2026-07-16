@@ -178,7 +178,7 @@ function clusterKeywords(keywords, serpTitles) {
 
 export async function POST(request) {
   try {
-    const quotaCheck = checkQuota(request, 'keyword_research', 'search');
+    const quotaCheck = await checkQuota(request, 'keyword_research', 'search');
     if (!quotaCheck.allowed) {
       if (quotaCheck.reason === 'auth_required') {
         return NextResponse.json(

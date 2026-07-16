@@ -5,7 +5,7 @@ const DFSEO_BASE = 'https://api.dataforseo.com';
 
 export async function POST(request) {
   try {
-    const quotaCheck = checkQuota(request, 'backlinks', 'search');
+    const quotaCheck = await checkQuota(request, 'backlinks', 'search');
     if (!quotaCheck.allowed) {
       if (quotaCheck.reason === 'auth_required') {
         return NextResponse.json(

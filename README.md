@@ -31,7 +31,7 @@
 | 前端 | React 18, 内置 CSS 变量主题 |
 | 鉴权 | JWT（jsonwebtoken）+ HttpOnly Cookie + jose（Edge 中间件） |
 | 密码 | bcryptjs |
-| 数据库 | better-sqlite3（本地开发）；生产建议迁移至 Vercel Postgres |
+| 数据库 | Turso（`@libsql/client`，SQLite 云版，支持 Vercel 无状态环境） |
 | 部署 | Vercel Serverless |
 | 数据源 | DataForSEO / Tavily（通过环境变量切换） |
 
@@ -72,6 +72,8 @@ npm run dev
 | `TAVILY_API_KEY` | Tavily API Key（可选，备用搜索源） |
 | `DATA_SOURCE` | 数据源：`dataforseo` 或 `tavily` |
 | `JWT_SECRET` | JWT 签名密钥（请使用足够随机的长字符串） |
+| `TURSO_URL` | Turso 数据库地址（形如 `libsql://xxx.turso.io`），账户系统必填 |
+| `TURSO_AUTH_TOKEN` | Turso 数据库令牌（形如 `eyJ...`），账户系统必填 |
 
 > ⚠️ `.env.local` 含有密钥，**已被 `.gitignore` 忽略，不会被提交到仓库**。请勿将真实凭证提交到 Git。
 
@@ -121,9 +123,11 @@ src/
 ## ☁️ 部署到 Vercel
 
 1. 在 Vercel 导入该仓库。
-2. 在 Vercel 项目设置中配置上述环境变量。
-3. 本地数据库 `better-sqlite3` 仅适用于本地 / 有状态环境；生产环境请将 `src/lib/db.js` 切换为 Vercel Postgres 等托管数据库。
-4. 部署完成后访问分配的域名即可。
+2. 在 Vercel 项目设置中配置上述环境变量（**`JWT_SECRET`、`TURSO_URL`、`TURSO_AUTH_TOKEN` 必填**）。
+3. 部署完成后访问分配的域名即可；首次访问会自动在 Turso 建表并写入 Admin 种子账号。
+4. 用默认 Admin 账号登录：`admin@seotool.com` / `Admin@2026`（请尽快修改密码）。
+
+> 数据库使用 Turso（SQLite 云版，`@libsql/client`），天然适配 Vercel 的无状态只读环境，无需降级或额外改造。
 
 ---
 

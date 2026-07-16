@@ -3,7 +3,7 @@ import { getUserFromRequest, ensureDb } from '@/lib/auth';
 
 export async function GET(request) {
   try {
-    const user = getUserFromRequest(request);
+    const user = await getUserFromRequest(request);
 
     if (!user) {
       return NextResponse.json({ user: null });
@@ -12,8 +12,8 @@ export async function GET(request) {
     // Get quota info for sub-accounts
     let quota = null;
     if (user.role !== 'admin') {
-      const db = ensureDb();
-      const q = db.prepare('SELECT daily_limit, used_today, last_reset_date FROM quotas WHERE user_id = ?').get(user.id);
+      const db = await ensureDb();
+      const q = await db.prepare('SELECT daily_limit, used_today, last_reset_date FROM quotas WHERE user_id = ?').get(user.id);
       if (q) {
         const today = new Date().toISOString().slice(0, 10);
         quota = {
@@ -27,8 +27,8 @@ export async function GET(request) {
     // Get permissions for sub-accounts
     let permissions = null;
     if (user.role !== 'admin') {
-      const db = ensureDb();
-      const perms = db.prepare('SELECT module, can_access, can_export, can_batch, weight FROM permissions WHERE user_id = ?').all(user.id);
+      const db = await ensureDb();
+      const perms = await db.prepare('SELECT module, can_access, can_export, can_batch, weight FROM permissions WHERE user_id = ?').all(user.id);
       permissions = perms.reduce((acc, p) => {
         acc[p.module] = {
           can_access: !!p.can_access,

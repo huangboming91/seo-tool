@@ -50,7 +50,7 @@ const LANGUAGE_MAP = {
 
 export async function POST(request) {
   try {
-    const quotaCheck = checkQuota(request, 'rank_tracking', 'search');
+    const quotaCheck = await checkQuota(request, 'rank_tracking', 'search');
     if (!quotaCheck.allowed) {
       if (quotaCheck.reason === 'auth_required') {
         return NextResponse.json(

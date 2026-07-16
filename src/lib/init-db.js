@@ -13,10 +13,11 @@ const MODULE_WEIGHTS = {
 
 const MODULES = Object.keys(MODULE_WEIGHTS);
 
-export function initDatabase() {
+export async function initDatabase() {
   const db = getDb();
 
-  db.exec(`
+  // DDL is idempotent thanks to IF NOT EXISTS
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
@@ -65,20 +66,20 @@ export function initDatabase() {
   `);
 
   // Check if admin exists
-  const admin = db.prepare('SELECT id FROM users WHERE role = ?').get('admin');
+  const admin = await db.prepare('SELECT id FROM users WHERE role = ?').get('admin');
 
   if (!admin) {
     const adminId = crypto.randomUUID();
     const passwordHash = bcrypt.hashSync('Admin@2026', 10);
     const today = new Date().toISOString().slice(0, 10);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO users (id, email, password_hash, display_name, role, status, data_scope)
       VALUES (?, ?, ?, ?, 'admin', 'active', 'all')
     `).run(adminId, 'admin@seotool.com', passwordHash, 'Administrator');
 
     // Admin quota: unlimited (set high limit)
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO quotas (id, user_id, daily_limit, used_today, last_reset_date)
       VALUES (?, ?, 999999, 0, ?)
     `).run(crypto.randomUUID(), adminId, today);
@@ -89,7 +90,7 @@ export function initDatabase() {
       VALUES (?, ?, ?, 1, 1, 1, ?)
     `);
     for (const mod of MODULES) {
-      permStmt.run(crypto.randomUUID(), adminId, mod, MODULE_WEIGHTS[mod]);
+      await permStmt.run(crypto.randomUUID(), adminId, mod, MODULE_WEIGHTS[mod]);
     }
 
     console.log('[DB] Admin account created: admin@seotool.com / Admin@2026');
