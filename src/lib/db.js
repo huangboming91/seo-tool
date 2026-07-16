@@ -3,7 +3,16 @@ import { createClient } from '@libsql/client';
 let clientInstance = null;
 
 function createLibsqlClient() {
-  const url = process.env.TURSO_URL || process.env.DATABASE_URL || 'file:./data/seo-tool.db';
+  const url = process.env.TURSO_URL || process.env.DATABASE_URL;
+  if (!url) {
+    // Vercel 等无状态环境不能写本地文件；缺失 TURSO_URL 时给出明确提示，
+    // 而不是 fallback 到 file: 后抛难以排查的 500。
+    throw new Error(
+      'TURSO_URL is not configured. Add TURSO_URL and TURSO_AUTH_TOKEN in your ' +
+      'deployment environment (Vercel: Project Settings -> Environment Variables), ' +
+      'then redeploy.'
+    );
+  }
   const authToken = process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN || '';
   const client = createClient({ url, authToken });
   // Foreign keys are OFF by default in SQLite; enable per connection so
